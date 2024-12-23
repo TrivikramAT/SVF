@@ -438,14 +438,16 @@ PHIVFGNode::PHIVFGNode(NodeID id, const PAGNode* r,VFGNodeK k): VFGNode(id, k), 
  * 2) connect VFG edges
  *    between two statements (PAGEdges)
  */
-VFG::VFG(PTACallGraph* cg, VFGK k): totalVFGNode(0), callgraph(cg), pag(SVFIR::getPAG()), kind(k)
+VFG::VFG(PTACallGraph* cg, VFGK k, bool init): totalVFGNode(0), callgraph(cg), pag(SVFIR::getPAG()), kind(k)
 {
+    if(init)
+    {
+        DBOUT(DGENERAL, outs() << pasMsg("\tCreate VFG Top Level Node\n"));
+        addVFGNodes();
 
-    DBOUT(DGENERAL, outs() << pasMsg("\tCreate VFG Top Level Node\n"));
-    addVFGNodes();
-
-    DBOUT(DGENERAL, outs() << pasMsg("\tCreate SVFG Direct Edge\n"));
-    connectDirectVFGEdges();
+        DBOUT(DGENERAL, outs() << pasMsg("\tCreate SVFG Direct Edge\n"));
+        connectDirectVFGEdges();
+    }
 }
 
 /*!

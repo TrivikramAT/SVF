@@ -109,7 +109,7 @@ protected:
 
 public:
     /// Constructor
-    VFG(PTACallGraph* callgraph, VFGK k = FULLSVFG);
+    VFG(PTACallGraph* callgraph, VFGK k = FULLSVFG, bool init = true);
 
     /// Destructor
     virtual ~VFG()

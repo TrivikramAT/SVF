@@ -162,7 +162,7 @@ void SVFIRBuilder::handleExtCall(const CallBase* cs, const SVFFunction* svfCalle
             addComplexConsForExt(cs->getArgOperand(3), cs->getArgOperand(1), nullptr);
         else if(svfCallee->getName().find("bcopy") != std::string::npos)
             addComplexConsForExt(cs->getArgOperand(1), cs->getArgOperand(0), cs->getArgOperand(2));
-        if(svfCall->arg_size() == 3)
+        if(svfCall->arg_size() == 3 || svfCall->arg_size() == 4)    // llvm.memcpy intrinsic has 4 arguments
             addComplexConsForExt(cs->getArgOperand(0), cs->getArgOperand(1), cs->getArgOperand(2));
         else
             addComplexConsForExt(cs->getArgOperand(0), cs->getArgOperand(1), nullptr);
