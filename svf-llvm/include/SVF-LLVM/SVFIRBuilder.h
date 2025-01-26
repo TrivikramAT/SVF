@@ -272,7 +272,8 @@ protected:
     {
         LLVMContext& cxt = llvmModuleSet()->getContext();
         ConstantPointerNull* constNull = ConstantPointerNull::get(PointerType::getUnqual(cxt));
-        NodeID nullPtr = pag->addValNode(llvmModuleSet()->getSVFValue(constNull),pag->getNullPtr(), nullptr);
+        NodeID nullPtr = pag->addConstantNullPtrValNode(pag->getNullPtr(), nullptr, llvmModuleSet()->getSVFType(constNull->getType()));
+        llvmModuleSet()->addToSVFVar2LLVMValueMap(constNull, pag->getGNode(pag->getNullPtr()));
         setCurrentLocation(constNull, nullptr);
         addBlackHoleAddrEdge(pag->getBlkPtr());
         return nullPtr;
@@ -305,8 +306,7 @@ protected:
         AddrStmt* edge = addAddrEdge(src, dst);
         if (inst.getArraySize())
         {
-            SVFValue* arrSz = llvmModuleSet()->getSVFValue(inst.getArraySize());
-            edge->addArrSize(arrSz);
+            edge->addArrSize(pag->getGNode(getValueNode(inst.getArraySize())));
         }
         return edge;
     }
@@ -332,8 +332,7 @@ protected:
             if (cs->arg_size() > 0)
             {
                 const llvm::Value* val = cs->getArgOperand(0);
-                SVFValue* svfval = llvmModuleSet()->getSVFValue(val);
-                edge->addArrSize(svfval);
+                edge->addArrSize(pag->getGNode(getValueNode(val)));
             }
         }
         // Check if the function called is 'calloc' and process its arguments.
@@ -342,8 +341,10 @@ protected:
         {
             if (cs->arg_size() > 1)
             {
-                edge->addArrSize(llvmModuleSet()->getSVFValue(cs->getArgOperand(0)));
-                edge->addArrSize(llvmModuleSet()->getSVFValue(cs->getArgOperand(1)));
+                edge->addArrSize(
+                    pag->getGNode(getValueNode(cs->getArgOperand(0))));
+                edge->addArrSize(
+                    pag->getGNode(getValueNode(cs->getArgOperand(1))));
             }
         }
         else
@@ -351,8 +352,7 @@ protected:
             if (cs->arg_size() > 0)
             {
                 const llvm::Value* val = cs->getArgOperand(0);
-                SVFValue* svfval = llvmModuleSet()->getSVFValue(val);
-                edge->addArrSize(svfval);
+                edge->addArrSize(pag->getGNode(getValueNode(val)));
             }
         }
         return edge;

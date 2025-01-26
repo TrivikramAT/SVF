@@ -50,7 +50,8 @@ const Type* SVFIRBuilder::getBaseTypeAndFlattenedFields(const Value* V, std::vec
     /// use user-specified size for this copy operation if the size is a constaint int
     if(szValue && SVFUtil::isa<ConstantInt>(szValue))
     {
-        numOfElems = (numOfElems > SVFUtil::cast<ConstantInt>(szValue)->getSExtValue()) ? SVFUtil::cast<ConstantInt>(szValue)->getSExtValue() : numOfElems;
+        auto szIntVal = LLVMUtil::getIntegerValue(SVFUtil::cast<ConstantInt>(szValue));
+        numOfElems = (numOfElems > szIntVal.first) ? szIntVal.first : numOfElems;
     }
 
     LLVMContext& context = LLVMModuleSet::getLLVMModuleSet()->getContext();
@@ -64,7 +65,10 @@ const Type* SVFIRBuilder::getBaseTypeAndFlattenedFields(const Value* V, std::vec
         {
             SymbolTableBuilder builder(pag->getSymbolInfo());
             builder.collectSym(offset);
-            pag->addValNode(svfOffset, pag->getSymbolInfo()->getValSym(svfOffset), nullptr);
+            SymID id = pag->getSymbolInfo()->getValSym(svfOffset);
+            pag->addConstantIntValNode(id, LLVMUtil::getIntegerValue(offset), nullptr, svfOffset->getType());
+            llvmModuleSet()->addToSVFVar2LLVMValueMap(offset,
+                    pag->getGNode(id));
         }
         ls.addOffsetVarAndGepTypePair(getPAG()->getGNode(getPAG()->getValueNode(svfOffset)), nullptr);
         fields.push_back(ls);

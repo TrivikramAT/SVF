@@ -82,7 +82,8 @@ void SaberSVFGBuilder::collectGlobals(BVDataPTAImpl* pta)
             if(SVFUtil::isa<DummyObjVar>(pag->getGNode(gepobj->getBaseNode())))
                 continue;
         }
-        if(pagNode->hasValue() && SVFUtil::isa<SVFGlobalValue>(pagNode->getValue()))
+        if ((isa<ObjVar>(pagNode) && isa<GlobalObjVar>(pag->getBaseObject(pagNode->getId()))) ||
+                (isa<ValVar>(pagNode) && isa<GlobalValVar>(pag->getBaseValVar(pagNode->getId()))))
             worklist.push_back(it->first);
     }
 
@@ -132,7 +133,7 @@ PointsTo& SaberSVFGBuilder::CollectPtsChain(BVDataPTAImpl* pta, NodeID id, NodeT
         // base object
         if (!Options::CollectExtRetGlobals())
         {
-            if(pta->isFIObjNode(baseId) && pag->getGNode(baseId)->hasValue())
+            if(pta->isFIObjNode(baseId))
             {
                 ValVar* valVar = SVFUtil::dyn_cast<ValVar>(pag->getGNode(baseId));
                 if(valVar && valVar->getICFGNode() && SVFUtil::isExtCall(valVar->getICFGNode()))
@@ -231,11 +232,13 @@ bool SaberSVFGBuilder::isStrongUpdate(const SVFGNode* node, NodeID& singleton, B
             singleton = *it;
 
             // Strong update can be made if this points-to target is not heap, array or field-insensitive.
-            if (!pta->isHeapMemObj(singleton) && !pta->isArrayMemObj(singleton)
-                    && SVFIR::getPAG()->getBaseObj(singleton)->isFieldInsensitive() == false
-                    && !pta->isLocalVarInRecursiveFun(singleton))
+            if (!pta->isHeapMemObj(singleton) && !pta->isArrayMemObj(singleton))
             {
-                isSU = true;
+                if (SVFIR::getPAG()->getBaseObject(singleton)->isFieldInsensitive() == false
+                        && !pta->isLocalVarInRecursiveFun(singleton))
+                {
+                    isSU = true;
+                }
             }
         }
     }

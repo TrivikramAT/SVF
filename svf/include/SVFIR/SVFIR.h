@@ -393,15 +393,6 @@ public:
     /// return whole allocated memory object if this node is a gep obj node
     /// return nullptr is this node is not a ObjVar type
     //@{
-    inline const MemObj* getObject(NodeID id) const
-    {
-        const SVFVar* node = getGNode(id);
-        if (const ObjVar* objPN = SVFUtil::dyn_cast<ObjVar>(node))
-            return getObject(objPN);
-        else
-            return nullptr;
-    }
-
     inline const BaseObjVar* getBaseObject(NodeID id) const
     {
         const SVFVar* node = getGNode(id);
@@ -412,19 +403,23 @@ public:
             return SVFUtil::dyn_cast<BaseObjVar>(node);
     }
 
-    inline const MemObj*getObject(const ObjVar* node) const
+    inline const ValVar* getBaseValVar(NodeID id) const
     {
-        return node->getMemObj();
+        const SVFVar* node = getGNode(id);
+        if(const GepValVar* gepVar = SVFUtil::dyn_cast<GepValVar>(node))
+            return gepVar->getBaseNode();
+        else
+            return SVFUtil::dyn_cast<ValVar>(node);
     }
     //@}
 
     /// Get a field SVFIR Object node according to base mem obj and offset
-    NodeID getGepObjVar(const MemObj* obj, const APOffset& ap);
+    NodeID getGepObjVar(const BaseObjVar* baseObj, const APOffset& ap);
     /// Get a field obj SVFIR node according to a mem obj and a given offset
     NodeID getGepObjVar(NodeID id, const APOffset& ap) ;
     /// Get a field-insensitive obj SVFIR node according to a mem obj
     //@{
-    inline NodeID getFIObjVar(const MemObj* obj) const
+    inline NodeID getFIObjVar(const BaseObjVar* obj) const
     {
         return obj->getId();
     }
@@ -454,7 +449,7 @@ public:
     }
     inline bool isConstantObj(NodeID id) const
     {
-        const MemObj* obj = getObject(id);
+        const BaseObjVar* obj = getBaseObject(id);
         assert(obj && "not an object node?");
         return SymbolTableInfo::isConstantObj(id) ||
                obj->isConstDataOrConstGlobal();
@@ -466,26 +461,19 @@ public:
     /// Get a base pointer node given a field pointer
     inline NodeID getBaseObjVar(NodeID id) const
     {
-        return getBaseObj(id)->getId();
-    }
-    inline const MemObj* getBaseObj(NodeID id) const
-    {
-        const SVFVar* node = pag->getGNode(id);
-        assert(SVFUtil::isa<ObjVar>(node) && "need an object node");
-        const ObjVar* obj = SVFUtil::cast<ObjVar>(node);
-        return obj->getMemObj();
+        return getBaseObject(id)->getId();
     }
     //@}
 
     /// Get all fields of an object
     //@{
-    NodeBS& getAllFieldsObjVars(const MemObj* obj);
+    NodeBS& getAllFieldsObjVars(const BaseObjVar* obj);
     NodeBS& getAllFieldsObjVars(NodeID id);
     NodeBS getFieldsAfterCollapse(NodeID id);
     //@}
     inline NodeID addDummyValNode()
     {
-        return addDummyValNode(NodeIDAllocator::get()->allocateValueId());
+        return addDummyValNode(NodeIDAllocator::get()->allocateValueId(), nullptr);
     }
     inline NodeID addDummyObjNode(const SVFType* type)
     {
@@ -556,131 +544,230 @@ private:
     /// add node into SVFIR
     //@{
     /// Add a value (pointer) node
-    inline NodeID addValNode(const SVFValue* val, NodeID i, const ICFGNode* icfgNode)
+    inline NodeID addValNode(NodeID i, const SVFType* type, const ICFGNode* icfgNode)
     {
-        SVFVar *node = new ValVar(val,i, ValVar::ValNode, icfgNode);
-        return addValNode(val, node, i);
+        SVFVar *node = new ValVar(i, type, icfgNode, ValVar::ValNode);
+        return addValNode(node);
     }
 
-    NodeID addFunValNode(const CallGraphNode* callGraphNode, NodeID i, const ICFGNode* icfgNode)
+    NodeID addFunValNode(NodeID i, const ICFGNode* icfgNode, const CallGraphNode* callGraphNode, const SVFType* type)
     {
-        FunValVar* node = new FunValVar(callGraphNode, i, icfgNode);
-        return addValNode(nullptr, node, i);
+        FunValVar* node = new FunValVar(i, icfgNode, callGraphNode, type);
+        return addValNode(node);
     }
+
+    NodeID addArgValNode(NodeID i, u32_t argNo, const ICFGNode* icfgNode, const CallGraphNode* callGraphNode, const SVFType* type, bool isUncalled = false)
+    {
+        ArgValVar* node =
+            new ArgValVar(i, argNo, icfgNode, callGraphNode, type, isUncalled);
+        return addValNode(node);
+    }
+
+    inline NodeID addConstantFPValNode(const NodeID i, double dval,
+                                       const ICFGNode* icfgNode, const SVFType* type)
+    {
+        SVFVar* node = new ConstFPValVar(i, dval, icfgNode, type);
+        return addNode(node);
+    }
+
+    inline NodeID addConstantIntValNode(NodeID i, const std::pair<s64_t, u64_t>& intValue,
+                                        const ICFGNode* icfgNode, const SVFType* type)
+    {
+        SVFVar* node = new ConstIntValVar(i, intValue.first, intValue.second, icfgNode, type);
+        return addNode(node);
+    }
+
+    inline NodeID addConstantNullPtrValNode(const NodeID i, const ICFGNode* icfgNode, const SVFType* type)
+    {
+        SVFVar* node = new ConstNullPtrValVar(i, icfgNode, type);
+        return addNode(node);
+    }
+
+    inline NodeID addGlobalValNode(const NodeID i, const ICFGNode* icfgNode, const SVFType* svfType)
+    {
+        SVFVar* node = new GlobalValVar(i, icfgNode, svfType);
+        return addNode(node);
+    }
+
+    inline NodeID addConstantAggValNode(const NodeID i, const ICFGNode* icfgNode, const SVFType* svfType)
+    {
+        SVFVar* node = new ConstAggValVar(i, icfgNode, svfType);
+        return addNode(node);
+    }
+
+    inline NodeID addConstantDataValNode(const NodeID i, const ICFGNode* icfgNode, const SVFType* type)
+    {
+        SVFVar* node = new ConstDataValVar(i, icfgNode, type);
+        return addNode(node);
+    }
+
 
     /// Add a memory obj node
-    inline NodeID addObjNode(const SVFValue* val, NodeID i)
+    inline NodeID addObjNode(NodeID i, ObjTypeInfo* ti, const SVFType* type, const ICFGNode* node)
     {
-        const MemObj* mem = getMemObj(val);
-        assert(mem->getId() == i && "not same object id?");
-        return addFIObjNode(mem);
+        return addFIObjNode( i, ti, type, node);
     }
 
     /**
      * Creates and adds a heap object node to the SVFIR
      */
-    inline NodeID addHeapObjNode(const SVFValue* val, const SVFFunction* f, NodeID i)
+    inline NodeID addHeapObjNode(NodeID i, ObjTypeInfo* ti, const SVFType* type, const ICFGNode* node)
     {
-        const MemObj* mem = getMemObj(val);
-        assert(mem->getId() == i && "not same object id?");
         memToFieldsMap[i].set(i);
-        HeapObjVar *node = new HeapObjVar(f, val->getType(), i, mem);
-        return addObjNode(val, node, i);
+        HeapObjVar *heapObj = new HeapObjVar(i, ti, type, node);
+        return addObjNode(heapObj);
     }
 
     /**
      * Creates and adds a stack object node to the SVFIR
      */
-    inline NodeID addStackObjNode(const SVFValue* val, const SVFFunction* f, NodeID i)
+    inline NodeID addStackObjNode(NodeID i, ObjTypeInfo* ti, const SVFType* type, const ICFGNode* node)
     {
-        const MemObj* mem = getMemObj(val);
-        assert(mem->getId() == i && "not same object id?");
         memToFieldsMap[i].set(i);
-        StackObjVar *node = new  StackObjVar(f, val->getType(), i, mem);
-        return addObjNode(val, node, i);
+        StackObjVar *stackObj = new StackObjVar(i, ti, type, node);
+        return addObjNode(stackObj);
     }
 
-    NodeID addFunObjNode(const CallGraphNode* callGraphNode, NodeID id);
-    /// Add a unique return node for a procedure
-    inline NodeID addRetNode(const CallGraphNode* callGraphNode, NodeID i)
+    NodeID addFunObjNode(NodeID id,  ObjTypeInfo* ti, const CallGraphNode* callGraphNode, const SVFType* type, const ICFGNode* node)
     {
-        SVFVar *node = new RetPN(callGraphNode,i);
-        return addRetNode(callGraphNode, node, i);
+        memToFieldsMap[id].set(id);
+        FunObjVar* funObj = new FunObjVar(id, ti, callGraphNode, type, node);
+        return addObjNode(funObj);
+    }
+
+
+    inline NodeID addConstantFPObjNode(NodeID i, ObjTypeInfo* ti, double dval, const SVFType* type, const ICFGNode* node)
+    {
+        memToFieldsMap[i].set(i);
+        ConstFPObjVar* conObj = new ConstFPObjVar(i, dval, ti, type, node);
+        return addObjNode(conObj);
+    }
+
+
+    inline NodeID addConstantIntObjNode(NodeID i, ObjTypeInfo* ti, const std::pair<s64_t, u64_t>& intValue, const SVFType* type, const ICFGNode* node)
+    {
+        memToFieldsMap[i].set(i);
+        ConstIntObjVar* conObj =
+            new ConstIntObjVar(i, intValue.first, intValue.second, ti, type, node);
+        return addObjNode(conObj);
+    }
+
+
+    inline NodeID addConstantNullPtrObjNode(const NodeID i, ObjTypeInfo* ti, const SVFType* type, const ICFGNode* node)
+    {
+        memToFieldsMap[i].set(i);
+        ConstNullPtrObjVar* conObj = new ConstNullPtrObjVar(i, ti, type, node);
+        return addObjNode(conObj);
+    }
+
+    inline NodeID addGlobalObjNode(const NodeID i, ObjTypeInfo* ti, const SVFType* type, const ICFGNode* node)
+    {
+        memToFieldsMap[i].set(i);
+        GlobalObjVar* gObj = new GlobalObjVar(i, ti, type, node);
+        return addObjNode(gObj);
+    }
+    inline NodeID addConstantAggObjNode(const NodeID i, ObjTypeInfo* ti, const SVFType* type, const ICFGNode* node)
+    {
+        memToFieldsMap[i].set(i);
+        ConstAggObjVar* conObj = new ConstAggObjVar(i, ti, type, node);
+        return addObjNode(conObj);
+    }
+    inline NodeID addConstantDataObjNode(const NodeID i, ObjTypeInfo* ti, const SVFType* type, const ICFGNode* node)
+    {
+        memToFieldsMap[i].set(i);
+        ConstDataObjVar* conObj = new ConstDataObjVar(i, ti, type, node);
+        return addObjNode(conObj);
+    }
+
+    /// Add a unique return node for a procedure
+    inline NodeID addRetNode(NodeID i, const CallGraphNode* callGraphNode, const SVFType* type, const ICFGNode* icn)
+    {
+        SVFVar *node = new RetValPN(i, callGraphNode, type, icn);
+        return addRetNode(callGraphNode, node);
     }
     /// Add a unique vararg node for a procedure
-    inline NodeID addVarargNode(const CallGraphNode* val, NodeID i)
+    inline NodeID addVarargNode(NodeID i, const CallGraphNode* val, const SVFType* type, const ICFGNode* n)
     {
-        SVFVar *node = new VarArgPN(val,i);
-        return addNode(node,i);
+        SVFVar *node = new VarArgValPN(i, val, type, n);
+        return addNode(node);
     }
 
     /// Add a temp field value node, this method can only invoked by getGepValVar
-    NodeID addGepValNode(const SVFValue* curInst,const SVFValue* val, const AccessPath& ap, NodeID i, const SVFType* type);
+    NodeID addGepValNode(const SVFValue* curInst,const SVFValue* val, const AccessPath& ap, NodeID i, const SVFType* type, const ICFGNode* node);
     /// Add a field obj node, this method can only invoked by getGepObjVar
-    NodeID addGepObjNode(const MemObj* obj, const APOffset& apOffset, const NodeID gepId);
+    NodeID addGepObjNode(const BaseObjVar* baseObj, const APOffset& apOffset, const NodeID gepId);
     /// Add a field-insensitive node, this method can only invoked by getFIGepObjNode
-    NodeID addFIObjNode(const MemObj* obj);
+    NodeID addFIObjNode(NodeID i, ObjTypeInfo* ti, const SVFType* type, const ICFGNode* node)
+    {
+        memToFieldsMap[i].set(i);
+        BaseObjVar* baseObj = new BaseObjVar(i, ti, type, node);
+        return addObjNode(baseObj);
+    }
+
 
     //@}
 
     ///  Add a dummy value/object node according to node ID (llvm value is null)
     //@{
-    inline NodeID addDummyValNode(NodeID i)
+    inline NodeID addDummyValNode(NodeID i, const ICFGNode* node)
     {
-        return addValNode(nullptr, new DummyValVar(i), i);
+        return addValNode(new DummyValVar(i, node));
     }
     inline NodeID addDummyObjNode(NodeID i, const SVFType* type)
     {
-        const MemObj* mem = addDummyMemObj(i, type);
-        return addObjNode(nullptr, new DummyObjVar(i,mem), i);
+        if (symInfo->idToObjTypeInfoMap().find(i) == symInfo->idToObjTypeInfoMap().end())
+        {
+            ObjTypeInfo* ti = symInfo->createObjTypeInfo(type);
+            symInfo->idToObjTypeInfoMap()[i] = ti;
+            return addObjNode(new DummyObjVar(i, ti, nullptr, type));
+        }
+        else
+        {
+            return addObjNode(new DummyObjVar(i, symInfo->getObjTypeInfo(i), nullptr, type));
+        }
     }
-    inline const MemObj* addDummyMemObj(NodeID i, const SVFType* type)
-    {
-        return getSymbolInfo()->createDummyObj(i,type);
-    }
+
     inline NodeID addBlackholeObjNode()
     {
-        return addObjNode(
-                   nullptr, new DummyObjVar(getBlackHoleNode(), getBlackHoleObj()),
-                   getBlackHoleNode());
+        return addObjNode(new DummyObjVar(getBlackHoleNode(), symInfo->getObjTypeInfo(getBlackHoleNode()), nullptr));
     }
     inline NodeID addConstantObjNode()
     {
-        return addObjNode(nullptr,
-                          new DummyObjVar(getConstantNode(), getConstantObj()),
-                          getConstantNode());
+        return addObjNode(new DummyObjVar(getConstantNode(), symInfo->getObjTypeInfo(getConstantNode()), nullptr));
     }
     inline NodeID addBlackholePtrNode()
     {
-        return addDummyValNode(getBlkPtr());
+        return addDummyValNode(getBlkPtr(), nullptr);
     }
     //@}
 
     /// Add a value (pointer) node
-    inline NodeID addValNode(const SVFValue*, SVFVar *node, NodeID i)
+    inline NodeID addValNode(SVFVar *node)
     {
-        assert(hasGNode(i) == false &&
+        assert(node && "node cannot be nullptr.");
+        assert(hasGNode(node->getId()) == false &&
                "This NodeID clashes here. Please check NodeIDAllocator. Switch "
                "Strategy::DBUG to SEQ or DENSE");
-        return addNode(node, i);
+        return addNode(node);
     }
     /// Add a memory obj node
-    inline NodeID addObjNode(const SVFValue*, SVFVar *node, NodeID i)
+    inline NodeID addObjNode(SVFVar *node)
     {
-        assert(hasGNode(i) == false &&
+        assert(node && "node cannot be nullptr.");
+        assert(hasGNode(node->getId()) == false &&
                "This NodeID clashes here. Please check NodeIDAllocator. Switch "
                "Strategy::DBUG to SEQ or DENSE");
-        return addNode(node, i);
+        return addNode(node);
     }
     /// Add a unique return node for a procedure
-    inline NodeID addRetNode(const CallGraphNode*, SVFVar *node, NodeID i)
+    inline NodeID addRetNode(const CallGraphNode*, SVFVar *node)
     {
-        return addNode(node,i);
+        return addNode(node);
     }
     /// Add a unique vararg node for a procedure
-    inline NodeID addVarargNode(const SVFFunction*, SVFVar *node, NodeID i)
+    inline NodeID addVarargNode(const SVFFunction*, SVFVar *node)
     {
-        return addNode(node,i);
+        return addNode(node);
     }
 
     /// Add global PAGEdges (not in a procedure)

@@ -75,8 +75,7 @@ void LLVMUtil::getFunReachableBBs (const Function* fun, std::vector<const SVFBas
 {
     assert(!SVFUtil::isExtCall(LLVMModuleSet::getLLVMModuleSet()->getSVFFunction(fun)) && "The calling function cannot be an external function.");
     //initial DominatorTree
-    DominatorTree dt;
-    dt.recalculate(const_cast<Function&>(*fun));
+    DominatorTree& dt = LLVMModuleSet::getLLVMModuleSet()->getDomTree(fun);
 
     Set<const BasicBlock*> visited;
     std::vector<const BasicBlock*> bbVec;
@@ -754,11 +753,26 @@ const std::string SVFBaseNode::valueOnlyToString() const
     }
     else
     {
-        auto llvmVal = LLVMModuleSet::getLLVMModuleSet()->getLLVMValue(this);
-        if (llvmVal)
-            rawstr << " " << *llvmVal << " ";
+        const SVFBaseNode* baseNode = this;
+        if (const GepValVar* valVar = SVFUtil::dyn_cast<GepValVar>(this))
+        {
+            baseNode = valVar->getBaseNode();
+        }
+        else if (const GepObjVar* objVar = SVFUtil::dyn_cast<GepObjVar>(this))
+        {
+            baseNode = objVar->getBaseObj();
+        }
+        if (SVFUtil::isa<DummyObjVar, DummyValVar, BlackHoleValVar>(baseNode))
+            rawstr << "";
         else
-            rawstr << " No llvmVal found";
+        {
+            auto llvmVal =
+                LLVMModuleSet::getLLVMModuleSet()->getLLVMValue(baseNode);
+            if (llvmVal)
+                rawstr << " " << *llvmVal << " ";
+            else
+                rawstr << "";
+        }
     }
     rawstr << getSourceLoc();
     return rawstr.str();

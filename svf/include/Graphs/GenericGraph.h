@@ -141,82 +141,110 @@ public:
 
     enum GNodeK
     {
-        // ┌── ICFGNode: Classes of inter-procedural and intra-procedural control flow graph nodes
-        IntraBlock,       // ├──Represents a node within a single procedure
-        GlobalBlock,      // ├──Represents a global-level block
-        // │   └─ InterICFGNode: Classes of inter-procedural control flow graph nodes
-        FunEntryBlock,    // ├──Entry point of a function
-        FunExitBlock,     // ├──Exit point of a function
-        FunCallBlock,     // ├──Call site in the function
-        FunRetBlock,      // ├──Return site in the function
-        // └────────
+        // ┌─────────────────────────────────────────────────────────────────────────┐
+        // │ ICFGNode: Classes of inter-procedural and intra-procedural control flow │
+        // │ graph nodes (Parent class: ICFGNode)                                   │
+        // └─────────────────────────────────────────────────────────────────────────┘
+        IntraBlock,       // ├── Represents a node within a single procedure
+        GlobalBlock,      // ├── Represents a global-level block
+        // │   └─ Subclass: InterICFGNode
+        FunEntryBlock,    // │   ├── Entry point of a function
+        FunExitBlock,     // │   ├── Exit point of a function
+        FunCallBlock,     // │   ├── Call site in the function
+        FunRetBlock,      // │   └── Return site in the function
 
-        // ┌── SVFVar: Classes of top-level variables (ValVar) and address-taken variables (ObjVar)
-        // │   └── ValVar: Classes of top-level variable nodes
-        ValNode,          // ├──Represents a standard value variable
-        FunValNode,       // ├──Represents a Function value variable
-        GepValNode,       // ├──Represents a GEP value variable
-        RetNode,          // ├──Represents a return value node
-        VarargNode,       // ├──Represents a variadic argument node
-        DummyValNode,     // ├──Dummy node for uninitialized values
-        // │   └── ObjVar: Classes of object variable nodes
-        ObjNode,          // ├──Represents an object variable
-        GepObjNode,       // ├──Represents a GEP object variable
-        // │        └── BaseObjVar: Classes of base object nodes
-        BaseObjNode,      // ├──Represents a base object node
-        FunObjNode,       // ├──Types of function object
-        HeapObjNode,      // ├──Types of heap object
-        StackObjNode,     // ├──Types of stack object
-        DummyObjNode,     // ├──Dummy node for uninitialized objects
-        // └────────
+        // ┌─────────────────────────────────────────────────────────────────────────┐
+        // │ SVFVar: Classes of variable nodes (Parent class: SVFVar)               │
+        // │   Includes two main subclasses: ValVar and ObjVar                      │
+        // └─────────────────────────────────────────────────────────────────────────┘
+        // └─ Subclass: ValVar (Top-level variable nodes)
+        ValNode,                 // ├── Represents a standard value variable
+        ArgValNode,              // ├── Represents an argument value variable
+        FunValNode,              // ├── Represents a function value variable
+        GepValNode,              // ├── Represents a GEP value variable
+        RetValNode,              // ├── Represents a return value node
+        VarargValNode,           // ├── Represents a variadic argument node
+        GlobalValNode,           // ├── Represents a global variable node
+        ConstAggValNode,         // ├── Represents a constant aggregate value node
+        // │   └─ Subclass: ConstDataValVar
+        ConstDataValNode,        // │   ├── Represents a constant data variable
+        BlackHoleValNode,        // │   ├── Represents a black hole node
+        ConstFPValNode,          // │   ├── Represents a constant floating-point value node
+        ConstIntValNode,         // │   ├── Represents a constant integer value node
+        ConstNullptrValNode,     // │   └── Represents a constant nullptr value node
+        // │   └─ Subclass: DummyValVar
+        DummyValNode,            // │   └── Dummy node for uninitialized values
 
-        // ┌── VFGNode: Classes of Value Flow Graph (VFG) node kinds with operations
-        Cmp,              // ├──Represents a comparison operation
-        BinaryOp,         // ├──Represents a binary operation
-        UnaryOp,          // ├──Represents a unary operation
-        Branch,           // ├──Represents a branch operation
-        DummyVProp,       // ├──Dummy node for value propagation
-        NPtr,             // ├──Represents a null pointer operation
-        // │   └── ArgumentVFGNode: Classes of argument nodes in VFG
-        FRet,             // ├──Represents a function return value
-        ARet,             // ├──Represents an argument return value
-        AParm,            // ├──Represents an argument parameter
-        FParm,            // ├──Represents a function parameter
-        // │   └── StmtVFGNode: Classes of statement nodes in VFG
-        Addr,             // ├──Represents an address operation
-        Copy,             // ├──Represents a copy operation
-        Gep,              // ├──Represents a GEP operation
-        Store,            // ├──Represents a store operation
-        Load,             // ├──Represents a load operation
-        // │   └── PHIVFGNode: Classes of PHI nodes in VFG
-        TPhi,             // ├──Represents a type-based PHI node
-        TIntraPhi,        // ├──Represents an intra-procedural PHI node
-        TInterPhi,        // ├──Represents an inter-procedural PHI node
-        // │   └── MRSVFGNode: Classes of Memory-related SVFG nodes
-        FPIN,             // ├──Function parameter input
-        FPOUT,            // ├──Function parameter output
-        APIN,             // ├──Argument parameter input
-        APOUT,            // ├──Argument parameter output
-        // │        └── MSSAPHISVFGNode: Classes of Mem SSA PHI nodes for SVFG
-        MPhi,             // ├──Memory PHI node
-        MIntraPhi,        // ├──Intra-procedural memory PHI node
-        MInterPhi,        // ├──Inter-procedural memory PHI node
-        // └────────
+        // └─ Subclass: ObjVar (Object variable nodes)
+        ObjNode,                 // ├── Represents an object variable
+        // │   └─ Subclass: GepObjVar
+        GepObjNode,              // │   ├── Represents a GEP object variable
+        // │   └─ Subclass: BaseObjVar
+        BaseObjNode,             // │   ├── Represents a base object node
+        FunObjNode,              // │   ├── Represents a function object
+        HeapObjNode,             // │   ├── Represents a heap object
+        StackObjNode,            // │   ├── Represents a stack object
+        GlobalObjNode,           // │   ├── Represents a global object
+        ConstAggObjNode,         // │   ├── Represents a constant aggregate object
+        // │   └─ Subclass: ConstDataObjVar
+        ConstDataObjNode,        // │   ├── Represents a constant data object
+        ConstFPObjNode,          // │   ├── Represents a constant floating-point object
+        ConstIntObjNode,         // │   ├── Represents a constant integer object
+        ConstNullptrObjNode,     // │   └── Represents a constant nullptr object
+        // │   └─ Subclass: DummyObjVar
+        DummyObjNode,            // │   └── Dummy node for uninitialized objects
 
-        // Additional specific graph node types
-        CallNodeKd,    // Callgraph node
-        CDNodeKd,      // Control dependence graph node
-        CFLNodeKd,     // CFL graph node
-        CHNodeKd,      // Class hierarchy graph node
+        // ┌─────────────────────────────────────────────────────────────────────────┐
+        // │ VFGNode: Classes of Value Flow Graph (VFG) node kinds (Parent class:   │
+        // │ VFGNode)                                                               │
+        // │   Includes operation nodes and specialized subclasses                  │
+        // └─────────────────────────────────────────────────────────────────────────┘
+        Cmp,              // ├── Represents a comparison operation
+        BinaryOp,         // ├── Represents a binary operation
+        UnaryOp,          // ├── Represents a unary operation
+        Branch,           // ├── Represents a branch operation
+        DummyVProp,       // ├── Dummy node for value propagation
+        NPtr,             // ├── Represents a null pointer operation
+        // │   └─ Subclass: ArgumentVFGNode
+        FRet,             // │   ├── Represents a function return value
+        ARet,             // │   ├── Represents an argument return value
+        AParm,            // │   ├── Represents an argument parameter
+        FParm,            // │   └── Represents a function parameter
+        // │   └─ Subclass: StmtVFGNode
+        Addr,             // │   ├── Represents an address operation
+        Copy,             // │   ├── Represents a copy operation
+        Gep,              // │   ├── Represents a GEP operation
+        Store,            // │   ├── Represents a store operation
+        Load,             // │   └── Represents a load operation
+        // │   └─ Subclass: PHIVFGNode
+        TPhi,             // │   ├── Represents a type-based PHI node
+        TIntraPhi,        // │   ├── Represents an intra-procedural PHI node
+        TInterPhi,        // │   └── Represents an inter-procedural PHI node
+        // │   └─ Subclass: MRSVFGNode
+        FPIN,             // │   ├── Function parameter input
+        FPOUT,            // │   ├── Function parameter output
+        APIN,             // │   ├── Argument parameter input
+        APOUT,            // │   └── Argument parameter output
+        // │       └─ Subclass: MSSAPHISVFGNode
+        MPhi,             // │       ├── Memory PHI node
+        MIntraPhi,        // │       ├── Intra-procedural memory PHI node
+        MInterPhi,        // │       └── Inter-procedural memory PHI node
+
+        // ┌─────────────────────────────────────────────────────────────────────────┐
+        // │ Additional specific graph node types                                   │
+        // └─────────────────────────────────────────────────────────────────────────┘
+        CallNodeKd,       // Callgraph node
+        CDNodeKd,         // Control dependence graph node
+        CFLNodeKd,        // CFL graph node
+        CHNodeKd,         // Class hierarchy graph node
         ConstraintNodeKd, // Constraint graph node
-        TCTNodeKd,     // Thread creation tree node
-        DCHNodeKd,     // DCHG node
-        OtherKd        // Other node kind
+        TCTNodeKd,        // Thread creation tree node
+        DCHNodeKd,        // DCHG node
+        OtherKd           // Other node kind
     };
 
 
-
-    SVFBaseNode(NodeID i, GNodeK k, SVFType* ty = nullptr): id(i),nodeKind(k), type(ty)
+    SVFBaseNode(NodeID i, GNodeK k, const SVFType* ty = nullptr): id(i),nodeKind(k), type(ty)
     {
 
     }
@@ -238,6 +266,21 @@ public:
         return type;
     }
 
+    inline virtual void setName(const std::string& nameInfo)
+    {
+        name = nameInfo;
+    }
+
+    inline virtual void setName(std::string&& nameInfo)
+    {
+        name = std::move(nameInfo);
+    }
+
+    virtual const std::string& getName() const
+    {
+        return name;
+    }
+
     inline virtual void setSourceLoc(const std::string& sourceCodeInfo)
     {
         sourceLoc = sourceCodeInfo;
@@ -256,6 +299,7 @@ protected:
     GNodeK nodeKind;	///< Node kind
     const SVFType* type; ///< SVF type
 
+    std::string name;
     std::string sourceLoc;  ///< Source code information of this value
 
     /// Helper functions to check node kinds
@@ -278,7 +322,7 @@ protected:
 
     static inline bool isSVFVarKind(GNodeK n)
     {
-        static_assert(DummyObjNode - ValNode == 12,
+        static_assert(DummyObjNode - ValNode == 26,
                       "The number of SVFVarKinds has changed, make sure the "
                       "range is correct");
 
@@ -287,15 +331,24 @@ protected:
 
     static inline bool isValVarKinds(GNodeK n)
     {
-        static_assert(DummyValNode - ValNode == 5,
+        static_assert(DummyValNode - ValNode == 13,
                       "The number of ValVarKinds has changed, make sure the "
                       "range is correct");
         return n <= DummyValNode && n >= ValNode;
     }
 
+
+    static inline bool isConstantDataValVar(GNodeK n)
+    {
+        static_assert(ConstNullptrValNode - ConstDataValNode == 4,
+                      "The number of ConstantDataValVarKinds has changed, make "
+                      "sure the range is correct");
+        return n <= ConstNullptrValNode && n >= ConstDataValNode;
+    }
+
     static inline bool isObjVarKinds(GNodeK n)
     {
-        static_assert(DummyObjNode - ObjNode == 6,
+        static_assert(DummyObjNode - ObjNode == 12,
                       "The number of ObjVarKinds has changed, make sure the "
                       "range is correct");
         return n <= DummyObjNode && n >= ObjNode;
@@ -303,10 +356,18 @@ protected:
 
     static inline bool isBaseObjVarKinds(GNodeK n)
     {
-        static_assert(DummyObjNode - BaseObjNode == 4,
+        static_assert(DummyObjNode - BaseObjNode == 10,
                       "The number of BaseObjVarKinds has changed, make sure the "
                       "range is correct");
         return n <= DummyObjNode && n >= BaseObjNode;
+    }
+
+    static inline bool isConstantDataObjVarKinds(GNodeK n)
+    {
+        static_assert(ConstNullptrObjNode - ConstDataObjNode == 3,
+                      "The number of ConstantDataObjVarKinds has changed, make "
+                      "sure the range is correct");
+        return n <= ConstNullptrObjNode && n >= ConstDataObjNode;
     }
 
     static inline bool isVFGNodeKinds(GNodeK n)
@@ -386,7 +447,7 @@ private:
 
 public:
     /// Constructor
-    GenericNode(NodeID i, GNodeK k): SVFBaseNode(i, k)
+    GenericNode(NodeID i, GNodeK k, const SVFType* svfType = nullptr): SVFBaseNode(i, k, svfType)
     {
 
     }

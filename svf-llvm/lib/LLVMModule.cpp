@@ -99,6 +99,15 @@ ObjTypeInference* LLVMModuleSet::getTypeInference()
     return typeInference;
 }
 
+DominatorTree& LLVMModuleSet::getDomTree(const SVF::Function* fun)
+{
+    auto it = FunToDominatorTree.find(fun);
+    if(it != FunToDominatorTree.end()) return it->second;
+    DominatorTree& dt = FunToDominatorTree[fun];
+    dt.recalculate(const_cast<Function&>(*fun));
+    return dt;
+}
+
 SVFModule* LLVMModuleSet::buildSVFModule(Module &mod)
 {
     LLVMModuleSet* mset = getLLVMModuleSet();
@@ -407,9 +416,8 @@ void LLVMModuleSet::initDomTree(SVFFunction* svffun, const Function* fun)
     if (fun->isDeclaration())
         return;
     //process and stored dt & df
-    DominatorTree dt;
     DominanceFrontier df;
-    dt.recalculate(const_cast<Function&>(*fun));
+    DominatorTree& dt = getDomTree(fun);
     df.analyze(dt);
     LoopInfo loopInfo = LoopInfo(dt);
     PostDominatorTree pdt = PostDominatorTree(const_cast<Function&>(*fun));
@@ -696,8 +704,7 @@ std::vector<const Function* > LLVMModuleSet::getLLVMGlobalFunctions(const Global
 
                 if (priority && func)
                 {
-                    queue.push(LLVMGlobalFunction(priority
-                                                  ->getZExtValue(),
+                    queue.push(LLVMGlobalFunction(LLVMUtil::getIntegerValue(priority).second,
                                                   func));
                 }
             }
@@ -1215,7 +1222,7 @@ void LLVMModuleSet::dumpModulesToFile(const std::string& suffix)
 void LLVMModuleSet::addFunctionMap(const Function* func, CallGraphNode* svfFunc)
 {
     LLVMFunc2CallGraphNode[func] = svfFunc;
-    setValueAttr(func, svfFunc);
+    addToSVFVar2LLVMValueMap(func, svfFunc);
 }
 
 void LLVMModuleSet::setValueAttr(const Value* val, SVFValue* svfvalue)
@@ -1246,10 +1253,12 @@ void LLVMModuleSet::setValueAttr(const Value* val, SVFValue* svfvalue)
     svfvalue->setSourceLoc(LLVMUtil::getSourceLoc(val));
 }
 
-void LLVMModuleSet::setValueAttr(const SVF::Value* val, SVF::SVFBaseNode* svfBaseNode)
+void LLVMModuleSet::addToSVFVar2LLVMValueMap(const Value* val,
+        SVFBaseNode* svfBaseNode)
 {
     SVFBaseNode2LLVMValue[svfBaseNode] = val;
     svfBaseNode->setSourceLoc(LLVMUtil::getSourceLoc(val));
+    svfBaseNode->setName(val->getName().str());
 }
 
 SVFConstantData* LLVMModuleSet::getSVFConstantData(const ConstantData* cd)

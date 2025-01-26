@@ -108,11 +108,11 @@ void FlowSensitiveStat::performStat()
         PAGNode* pagNode = nodeIt->second;
         if(SVFUtil::isa<ObjVar>(pagNode))
         {
-            const MemObj * memObj = pag->getBaseObj(nodeId);
-            SymID baseId = memObj->getId();
+            const BaseObjVar* baseObj = pag->getBaseObject(nodeId);
+            SymID baseId = baseObj->getId();
             if (nodeSet.insert(baseId).second)
             {
-                if (memObj->isFieldInsensitive())
+                if (baseObj->isFieldInsensitive())
                     fiObjNumber++;
                 else
                     fsObjNumber++;
@@ -296,11 +296,11 @@ void FlowSensitiveStat::statNullPtr()
                 if (!SVFUtil::isa<DummyValVar>(pagNode) && !SVFUtil::isa<DummyObjVar>(pagNode))
                 {
                     // if a pointer is in dead function, we do not care
-                    if(pagNode->getValue()->ptrInUncalledFunction() == false)
+                    if(pagNode->ptrInUncalledFunction() == false)
                     {
                         _NumOfNullPtr++;
                         rawstr << "##Null Pointer : (NodeID " << pagNode->getId()
-                               << ") PtrName:" << pagNode->getValue()->getName();
+                               << ") PtrName:" << pagNode->getName();
                         writeWrnMsg(rawstr.str());
                     }
                 }

@@ -44,28 +44,32 @@ using namespace SVF;
 using namespace SVFUtil;
 using namespace LLVMUtil;
 
-MemObj* SymbolTableBuilder::createBlkObj(SymID symId)
+ObjTypeInfo* SymbolTableBuilder::createBlkObjTypeInfo(SymID symId)
 {
     assert(symInfo->isBlkObj(symId));
-    assert(symInfo->objMap.find(symId)==symInfo->objMap.end());
     LLVMModuleSet* llvmset = LLVMModuleSet::getLLVMModuleSet();
-    MemObj* obj =
-        new MemObj(symId, symInfo->createObjTypeInfo(llvmset->getSVFType(
-                       IntegerType::get(llvmset->getContext(), 32))));
-    symInfo->objMap[symId] = obj;
-    return obj;
+    if (symInfo->objTypeInfoMap.find(symId)==symInfo->objTypeInfoMap.end())
+    {
+        ObjTypeInfo* ti =symInfo->createObjTypeInfo(llvmset->getSVFType(
+                             IntegerType::get(llvmset->getContext(), 32)));
+        symInfo->objTypeInfoMap[symId] = ti;
+    }
+    ObjTypeInfo* ti = symInfo->objTypeInfoMap[symId];
+    return ti;
 }
 
-MemObj* SymbolTableBuilder::createConstantObj(SymID symId)
+ObjTypeInfo* SymbolTableBuilder::createConstantObjTypeInfo(SymID symId)
 {
     assert(symInfo->isConstantObj(symId));
-    assert(symInfo->objMap.find(symId)==symInfo->objMap.end());
     LLVMModuleSet* llvmset = LLVMModuleSet::getLLVMModuleSet();
-    MemObj* obj =
-        new MemObj(symId, symInfo->createObjTypeInfo(llvmset->getSVFType(
-                       IntegerType::get(llvmset->getContext(), 32))));
-    symInfo->objMap[symId] = obj;
-    return obj;
+    if (symInfo->objTypeInfoMap.find(symId)==symInfo->objTypeInfoMap.end())
+    {
+        ObjTypeInfo* ti = symInfo->createObjTypeInfo(
+                              llvmset->getSVFType(IntegerType::get(llvmset->getContext(), 32)));
+        symInfo->objTypeInfoMap[symId] = ti;
+    }
+    ObjTypeInfo* ti = symInfo->objTypeInfoMap[symId];
+    return ti;
 }
 
 
@@ -86,11 +90,11 @@ void SymbolTableBuilder::buildMemModel(SVFModule* svfModule)
 
     // Object #2 is black hole the object that may point to any object
     assert(symInfo->totalSymNum++ == SymbolTableInfo::BlackHole && "Something changed!");
-    createBlkObj(SymbolTableInfo::BlackHole);
+    createBlkObjTypeInfo(SymbolTableInfo::BlackHole);
 
     // Object #3 always represents the unique constant of a program (merging all constants if Options::ModelConsts is disabled)
     assert(symInfo->totalSymNum++ == SymbolTableInfo::ConstantObj && "Something changed!");
-    createConstantObj(SymbolTableInfo::ConstantObj);
+    createConstantObjTypeInfo(SymbolTableInfo::ConstantObj);
 
     for (Module &M : LLVMModuleSet::getLLVMModuleSet()->getLLVMModules())
     {
@@ -339,11 +343,9 @@ void SymbolTableBuilder::collectObj(const Value* val)
                   outs() << "create a new obj sym " << id << "\n");
 
             // create a memory object
-            MemObj* mem =
-                new MemObj(id, createObjTypeInfo(val),
-                           llvmModuleSet->getSVFValue(val));
-            assert(symInfo->objMap.find(id) == symInfo->objMap.end());
-            symInfo->objMap[id] = mem;
+            ObjTypeInfo* ti = createObjTypeInfo(val);
+            assert(symInfo->objTypeInfoMap.find(id) == symInfo->objTypeInfoMap.end());
+            symInfo->objTypeInfoMap[id] = ti;
         }
     }
 }
@@ -781,7 +783,7 @@ u32_t SymbolTableBuilder::analyzeHeapAllocByteSize(const Value* val)
                                 llvm::dyn_cast<llvm::ConstantInt>(arg))
                     {
                         // Multiply the constant Value if all Args are const
-                        product *= constIntArg->getZExtValue();
+                        product *= LLVMUtil::getIntegerValue(constIntArg).second;
                     }
                     else
                     {
@@ -871,8 +873,8 @@ void SymbolTableBuilder::initTypeInfo(ObjTypeInfo* typeinfo, const Value* val,
         /// In most cases, `NumElements` is not specified in the instruction, which means there is only one element (objSize=1).
         if(const ConstantInt* sz = SVFUtil::dyn_cast<ConstantInt>(allocaInst->getArraySize()))
         {
-            elemNum = sz->getZExtValue() * getNumOfElements(objTy);
-            byteSize = sz->getZExtValue() * typeinfo->getType()->getByteSize();
+            elemNum = LLVMUtil::getIntegerValue(sz).second * getNumOfElements(objTy);
+            byteSize = LLVMUtil::getIntegerValue(sz).second * typeinfo->getType()->getByteSize();
         }
         /// if ArraySize is not constant, byteSize is not static determined.
         else
