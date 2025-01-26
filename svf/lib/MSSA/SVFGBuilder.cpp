@@ -82,8 +82,8 @@ SVFG* SVFGBuilder::build(BVDataPTAImpl* pta, VFG::VFGK kind)
     if(svfg->getMSSA()->getPTA()->printStat())
         svfg->performStat();
 
-    if(Options::DumpVFG())
-        svfg->dump("svfg_final");
+    if(!Options::DumpVFG().empty())
+        svfg->dump(Options::DumpVFG());
 
     return svfg.get();
 }

@@ -108,7 +108,7 @@ public:
     static const Option<std::string> SelfCycle;
 
     // Sparse value-flow graph (VFG.cpp)
-    static const Option<bool> DumpVFG;
+    static const Option<std::string> DumpVFG;
 
     // Base class of pointer analyses (PointerAnalysis.cpp)
     static const Option<bool> TypePrint;

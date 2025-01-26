@@ -191,10 +191,10 @@ const Option<std::string> Options::SelfCycle(
 
 
 // Sparse value-flow graph (VFG.cpp)
-const Option<bool> Options::DumpVFG(
+const Option<std::string> Options::DumpVFG(
     "dump-vfg",
     "Dump dot graph of VFG",
-    false
+    ""
 );
 
 

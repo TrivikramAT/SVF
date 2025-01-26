@@ -162,7 +162,7 @@ void FlowSensitive::readPtsFromFile(const std::string& filename)
  */
 void FlowSensitive::finalize()
 {
-    if(Options::DumpVFG())
+    if(!Options::DumpVFG().empty())
         svfg->dump("fs_solved", true);
 
     NodeStack& nodeStack = WPASolver<SVFG*>::SCCDetect();
